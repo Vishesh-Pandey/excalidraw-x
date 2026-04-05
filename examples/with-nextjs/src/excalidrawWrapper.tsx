@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef, useEffect, useCallback, useState } from "react";
+import React, { useMemo, useEffect, useCallback, useState } from "react";
 import { Excalidraw } from "@excalidraw/excalidraw";
 import type { ExcalidrawImperativeAPI, AppState } from "@excalidraw/excalidraw/types";
 
@@ -23,11 +23,6 @@ const ExcalidrawWrapper: React.FC = () => {
   const [excalidrawAPI, setExcalidrawAPI] =
     useState<ExcalidrawImperativeAPI | null>(null);
 
-  // Track the activeId we last loaded so we can save before switching
-  const loadedIdRef = useRef<string>("");
-  // Track whether the initial load for the current workspace has happened
-  const initialLoadDoneRef = useRef(false);
-
   // Save current scene to localStorage for the given workspace id
   const saveCurrentScene = useCallback(
     (id: string) => {
@@ -45,42 +40,61 @@ const ExcalidrawWrapper: React.FC = () => {
     [excalidrawAPI],
   );
 
-  // When activeId changes (workspace switch), save previous scene and load new one
+  // Persist current sheet on tab close/reload.
   useEffect(() => {
-    if (!excalidrawAPI || !activeId) return;
+    const handleBeforeUnload = () => {
+      saveCurrentScene(activeId);
+    };
 
-    const previousId = loadedIdRef.current;
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [activeId, saveCurrentScene]);
 
-    // Save previous workspace before switching
-    if (previousId && previousId !== activeId) {
-      saveCurrentScene(previousId);
-    }
-
-    // Load the new workspace
-    const { elements, appState } = loadWorkspaceData(activeId);
-    excalidrawAPI.updateScene({
-      elements,
-      appState,
-    });
-    excalidrawAPI.scrollToContent(undefined, { fitToViewport: true });
-
-    loadedIdRef.current = activeId;
-    initialLoadDoneRef.current = true;
-  }, [activeId, excalidrawAPI, saveCurrentScene]);
-
-  // Auto-save current scene to localStorage on every change (debounced via onChange)
+  // Auto-save active sheet whenever the scene changes.
   const handleChange = useCallback(() => {
-    if (!initialLoadDoneRef.current) return;
-    saveCurrentScene(loadedIdRef.current);
-  }, [saveCurrentScene]);
+    saveCurrentScene(activeId);
+  }, [activeId, saveCurrentScene]);
 
   const handleSwitch = useCallback(
     (id: string) => {
-      saveCurrentScene(loadedIdRef.current);
+      if (id === activeId) {
+        return;
+      }
+      saveCurrentScene(activeId);
       switchWorkspace(id);
     },
-    [saveCurrentScene, switchWorkspace],
+    [activeId, saveCurrentScene, switchWorkspace],
   );
+
+  const handleAdd = useCallback(
+    (name: string) => {
+      saveCurrentScene(activeId);
+      addWorkspace(name);
+    },
+    [activeId, addWorkspace, saveCurrentScene],
+  );
+
+  const handleRemove = useCallback(
+    (id: string) => {
+      if (id === activeId) {
+        saveCurrentScene(activeId);
+      }
+      removeWorkspace(id);
+    },
+    [activeId, removeWorkspace, saveCurrentScene],
+  );
+
+  const initialData = useMemo(() => {
+    if (!activeId) {
+      return {
+        elements: [],
+        appState: {},
+      };
+    }
+    return loadWorkspaceData(activeId);
+  }, [activeId]);
 
   return (
     <div className="workspace-root">
@@ -88,13 +102,15 @@ const ExcalidrawWrapper: React.FC = () => {
         workspaces={workspaces}
         activeId={activeId}
         onSwitch={handleSwitch}
-        onAdd={addWorkspace}
+        onAdd={handleAdd}
         onRename={renameWorkspace}
-        onRemove={removeWorkspace}
+        onRemove={handleRemove}
       />
       <div className="excalidraw-container">
         <Excalidraw
-          excalidrawAPI={(api) => setExcalidrawAPI(api)}
+          key={activeId || "default-sheet"}
+          onExcalidrawAPI={setExcalidrawAPI}
+          initialData={initialData}
           onChange={handleChange}
         />
       </div>

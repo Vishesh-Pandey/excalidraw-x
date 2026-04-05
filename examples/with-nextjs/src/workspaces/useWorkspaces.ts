@@ -9,6 +9,7 @@ export interface Workspace {
 }
 
 const STORAGE_KEY_LIST = "excalidraw_workspaces";
+const STORAGE_KEY_ACTIVE = "excalidraw_active_workspace";
 const storageKey = (id: string) => `excalidraw_workspace_${id}`;
 
 function generateId(): string {
@@ -38,6 +39,46 @@ function loadWorkspaces(): Workspace[] {
 
 function saveWorkspaceList(workspaces: Workspace[]): void {
   localStorage.setItem(STORAGE_KEY_LIST, JSON.stringify(workspaces));
+}
+
+function saveActiveWorkspaceId(id: string): void {
+  localStorage.setItem(STORAGE_KEY_ACTIVE, id);
+}
+
+function loadActiveWorkspaceId(): string {
+  return localStorage.getItem(STORAGE_KEY_ACTIVE) || "";
+}
+
+function normalizeName(name: string): string {
+  return name.trim().replace(/\s+/g, " ");
+}
+
+function makeUniqueWorkspaceName(
+  desiredName: string,
+  existingNames: readonly string[],
+): string {
+  const normalizedExisting = new Set(existingNames.map((name) => normalizeName(name)));
+  const base = normalizeName(desiredName) || "Sheet";
+  if (!normalizedExisting.has(base)) {
+    return base;
+  }
+
+  let counter = 2;
+  while (normalizedExisting.has(`${base} ${counter}`)) {
+    counter += 1;
+  }
+  return `${base} ${counter}`;
+}
+
+function makeDefaultSheetName(existingNames: readonly string[]): string {
+  const normalizedExisting = new Set(existingNames.map((name) => normalizeName(name)));
+  let counter = 1;
+  let candidate = `Sheet ${counter}`;
+  while (normalizedExisting.has(candidate)) {
+    counter += 1;
+    candidate = `Sheet ${counter}`;
+  }
+  return candidate;
 }
 
 export function loadWorkspaceData(id: string): {
@@ -77,28 +118,56 @@ export function useWorkspaces() {
   useEffect(() => {
     const list = loadWorkspaces();
     setWorkspaces(list);
-    setActiveId(list[0].id);
+    const persistedActiveId = loadActiveWorkspaceId();
+    const nextActiveId =
+      list.find((workspace) => workspace.id === persistedActiveId)?.id || list[0]?.id || "";
+    setActiveId(nextActiveId);
+    if (nextActiveId) {
+      saveActiveWorkspaceId(nextActiveId);
+    }
   }, []);
 
+  useEffect(() => {
+    if (activeId) {
+      saveActiveWorkspaceId(activeId);
+    }
+  }, [activeId]);
+
   const addWorkspace = useCallback((name: string) => {
-    const ws: Workspace = {
-      id: generateId(),
-      name: name.trim() || `Sheet ${Date.now()}`,
-      createdAt: Date.now(),
-    };
+    const wsId = generateId();
     setWorkspaces((prev) => {
+      const resolvedName =
+        normalizeName(name).length > 0
+          ? makeUniqueWorkspaceName(name, prev.map((workspace) => workspace.name))
+          : makeDefaultSheetName(prev.map((workspace) => workspace.name));
+      const ws: Workspace = {
+        id: wsId,
+        name: resolvedName,
+        createdAt: Date.now(),
+      };
       const next = [...prev, ws];
       saveWorkspaceList(next);
       return next;
     });
-    setActiveId(ws.id);
-    return ws.id;
+    setActiveId(wsId);
+    return wsId;
   }, []);
 
   const renameWorkspace = useCallback((id: string, name: string) => {
     setWorkspaces((prev) => {
+      const current = prev.find((workspace) => workspace.id === id);
+      if (!current) {
+        return prev;
+      }
+      const siblingNames = prev
+        .filter((workspace) => workspace.id !== id)
+        .map((workspace) => workspace.name);
+      const resolvedName =
+        normalizeName(name).length > 0
+          ? makeUniqueWorkspaceName(name, siblingNames)
+          : current.name;
       const next = prev.map((w) =>
-        w.id === id ? { ...w, name: name.trim() || w.name } : w,
+        w.id === id ? { ...w, name: resolvedName } : w,
       );
       saveWorkspaceList(next);
       return next;
@@ -109,27 +178,22 @@ export function useWorkspaces() {
     (id: string) => {
       setWorkspaces((prev) => {
         if (prev.length === 1) return prev; // keep at least one
+        const removedIndex = prev.findIndex((workspace) => workspace.id === id);
         const next = prev.filter((w) => w.id !== id);
         saveWorkspaceList(next);
         deleteWorkspaceData(id);
+
+        if (activeId === id) {
+          const fallbackIndex = Math.min(removedIndex, next.length - 1);
+          const nextActiveId = next[fallbackIndex]?.id || next[0]?.id || "";
+          setActiveId(nextActiveId);
+        }
+
         return next;
       });
-      setActiveId((prev) => {
-        if (prev !== id) return prev;
-        // switch to first remaining workspace using the functional updater pattern
-        // we derive remaining from current workspaces via the state at call time
-        return "";
-      });
     },
-    [],
+    [activeId],
   );
-
-  // Resolve empty activeId after removal to the first available workspace
-  useEffect(() => {
-    if (activeId === "" && workspaces.length > 0) {
-      setActiveId(workspaces[0].id);
-    }
-  }, [activeId, workspaces]);
 
   const switchWorkspace = useCallback((id: string) => {
     setActiveId(id);
