@@ -1,5 +1,6 @@
-"use client";
 import { useState, useEffect, useCallback } from "react";
+import type { ExcalidrawElement } from "@excalidraw/excalidraw/element/types";
+import type { AppState } from "@excalidraw/excalidraw/types";
 
 export interface Workspace {
   id: string;
@@ -11,6 +12,9 @@ const STORAGE_KEY_LIST = "excalidraw_workspaces";
 const storageKey = (id: string) => `excalidraw_workspace_${id}`;
 
 function generateId(): string {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
   return Math.random().toString(36).slice(2, 10);
 }
 
@@ -37,8 +41,8 @@ function saveWorkspaceList(workspaces: Workspace[]): void {
 }
 
 export function loadWorkspaceData(id: string): {
-  elements: any[];
-  appState: Record<string, any>;
+  elements: ExcalidrawElement[];
+  appState: Partial<AppState>;
 } {
   try {
     const raw = localStorage.getItem(storageKey(id));
@@ -53,8 +57,8 @@ export function loadWorkspaceData(id: string): {
 
 export function saveWorkspaceData(
   id: string,
-  elements: readonly any[],
-  appState: Record<string, any>,
+  elements: readonly ExcalidrawElement[],
+  appState: Partial<AppState>,
 ): void {
   localStorage.setItem(
     storageKey(id),
@@ -112,13 +116,20 @@ export function useWorkspaces() {
       });
       setActiveId((prev) => {
         if (prev !== id) return prev;
-        // switch to first remaining workspace
-        const remaining = workspaces.filter((w) => w.id !== id);
-        return remaining[0]?.id ?? "";
+        // switch to first remaining workspace using the functional updater pattern
+        // we derive remaining from current workspaces via the state at call time
+        return "";
       });
     },
-    [workspaces],
+    [],
   );
+
+  // Resolve empty activeId after removal to the first available workspace
+  useEffect(() => {
+    if (activeId === "" && workspaces.length > 0) {
+      setActiveId(workspaces[0].id);
+    }
+  }, [activeId, workspaces]);
 
   const switchWorkspace = useCallback((id: string) => {
     setActiveId(id);

@@ -1,7 +1,7 @@
 "use client";
 import React, { useRef, useEffect, useCallback, useState } from "react";
 import { Excalidraw } from "@excalidraw/excalidraw";
-import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
+import type { ExcalidrawImperativeAPI, AppState } from "@excalidraw/excalidraw/types";
 
 import "@excalidraw/excalidraw/index.css";
 
@@ -35,7 +35,7 @@ const ExcalidrawWrapper: React.FC = () => {
       const elements = excalidrawAPI.getSceneElements();
       const appState = excalidrawAPI.getAppState();
       // Only persist a subset of appState that is meaningful across sessions
-      const persistedAppState: Record<string, unknown> = {
+      const persistedAppState: Partial<AppState> = {
         viewBackgroundColor: appState.viewBackgroundColor,
         currentItemFontFamily: appState.currentItemFontFamily,
         theme: appState.theme,
@@ -90,12 +90,7 @@ const ExcalidrawWrapper: React.FC = () => {
         onSwitch={handleSwitch}
         onAdd={addWorkspace}
         onRename={renameWorkspace}
-        onRemove={(id) => {
-          if (id === activeId) {
-            // switch first, then remove (useWorkspaces handles the switch internally)
-          }
-          removeWorkspace(id);
-        }}
+        onRemove={removeWorkspace}
       />
       <div className="excalidraw-container">
         <Excalidraw
