@@ -1,0 +1,129 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  overflow-x: auto;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px 6px 0 0;
+  border: 1px solid #dee2e6;
+  border-bottom: none;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  color: #495057;
+  transition: background 0.15s, color 0.15s;
+  max-width: 160px;
+  min-width: 60px;
+  user-select: none;
+}
+
+.tab:hover {
+  background: #e9ecef;
+}
+
+.tab.active {
+  background: #fff;
+  color: #1c7ed6;
+  border-color: #adb5bd;
+  font-weight: 600;
+  position: relative;
+}
+
+.tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #1c7ed6;
+  border-radius: 2px 2px 0 0;
+}
+
+.tabName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.deleteBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #adb5bd;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  transition: color 0.1s, background 0.1s;
+}
+
+.deleteBtn:hover {
+  color: #e03131;
+  background: #ffe3e3;
+}
+
+.addBtn {
+  background: none;
+  border: 1px dashed #adb5bd;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #6c757d;
+  font-size: 13px;
+  padding: 4px 10px;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+
+.addBtn:hover {
+  border-color: #1c7ed6;
+  color: #1c7ed6;
+  background: #e7f5ff;
+}
+
+.newTab {
+  display: flex;
+  align-items: center;
+}
+
+.newInput,
+.renameInput {
+  font-size: 13px;
+  border: 1px solid #1c7ed6;
+  border-radius: 4px;
+  padding: 3px 6px;
+  outline: none;
+  width: 120px;
+  background: #fff;
+  color: #212529;
+}
