@@ -1,0 +1,13 @@
+.workspace-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+}
+
+.excalidraw-container {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
